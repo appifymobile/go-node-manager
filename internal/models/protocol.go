@@ -8,6 +8,7 @@ const (
 	WIREGUARD   ProtocolType = "WIREGUARD"
 	SHADOWSOCKS ProtocolType = "SHADOWSOCKS"
 	VLESS       ProtocolType = "VLESS"
+	HYSTERIA2   ProtocolType = "HYSTERIA2"
 )
 
 func (p ProtocolType) String() string {
@@ -16,7 +17,7 @@ func (p ProtocolType) String() string {
 
 func (p ProtocolType) IsValid() bool {
 	switch p {
-	case WIREGUARD, SHADOWSOCKS, VLESS:
+	case WIREGUARD, SHADOWSOCKS, VLESS, HYSTERIA2:
 		return true
 	default:
 		return false
@@ -60,6 +61,16 @@ type SingBoxConfig struct {
 	Method      string `json:"method,omitempty"` // For ShadowSocks
 	NodeAddress string `json:"nodeAddress"`
 	Port        uint16 `json:"port"`
+}
+
+// Hysteria2Config - JSON response for Hysteria2 /connect endpoint
+type Hysteria2Config struct {
+	ClientID    int64  `json:"clientId"`
+	Protocol    string `json:"protocol"`
+	Password    string `json:"password"`
+	NodeAddress string `json:"nodeAddress"`
+	Port        uint16 `json:"port"`
+	Obfs        string `json:"obfs,omitempty"` // Optional obfuscation
 }
 
 type VPNError struct {

@@ -119,6 +119,11 @@ func main() {
 					Port:    cfg.VPN.SingBox.VLESS.Port,
 					ShortID: cfg.VPN.SingBox.VLESS.ShortID,
 				},
+				models.HYSTERIA2: {
+					Enabled: cfg.VPN.SingBox.Hysteria2.Enabled,
+					Port:    cfg.VPN.SingBox.Hysteria2.Port,
+					Obfs:    cfg.VPN.SingBox.Hysteria2.Obfs,
+				},
 			},
 			logger,
 		)
@@ -144,6 +149,13 @@ func main() {
 			managers[models.VLESS] = sbManager
 			logger.Info("VLESS manager initialized",
 				"port", cfg.VPN.SingBox.VLESS.Port,
+			)
+		}
+
+		if cfg.VPN.SingBox.Hysteria2.Enabled {
+			managers[models.HYSTERIA2] = sbManager
+			logger.Info("Hysteria2 manager initialized",
+				"port", cfg.VPN.SingBox.Hysteria2.Port,
 			)
 		}
 

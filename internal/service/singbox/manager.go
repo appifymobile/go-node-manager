@@ -33,6 +33,7 @@ type ProtocolConfig struct {
 	Method         string // For ShadowSocks encryption
 	ShortID        string // For VLESS
 	EncryptionKey  string // Derived from password
+	Obfs           string // For Hysteria2 obfuscation (optional)
 }
 
 // SingBoxConfig represents the full sing-box configuration
@@ -288,6 +289,14 @@ func (m *Manager) generateAndWriteConfig(ctx context.Context) error {
 		config.Inbounds = append(config.Inbounds, *inbound)
 	}
 
+	if m.protocols[models.HYSTERIA2].Enabled {
+		inbound, err := m.buildHysteria2Inbound(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to build Hysteria2 inbound: %w", err)
+		}
+		config.Inbounds = append(config.Inbounds, *inbound)
+	}
+
 	// Write to file
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
@@ -364,21 +373,82 @@ func (m *Manager) buildVLESSInbound(ctx context.Context) (*InboundConfig, error)
 	}, nil
 }
 
-// buildClientConfig generates the response configuration for a client
-func (m *Manager) buildClientConfig(protocolType models.ProtocolType, password string) *models.SingBoxConfig {
-	cfg := m.protocols[protocolType]
+// buildHysteria2Inbound creates a Hysteria2 inbound configuration
+func (m *Manager) buildHysteria2Inbound(ctx context.Context) (*InboundConfig, error) {
+	cfg := m.protocols[models.HYSTERIA2]
 
-	var method string
-	if protocolType == models.SHADOWSOCKS {
-		method = cfg.Method
+	// Fetch all Hysteria2 clients from database
+	clients, err := m.db.FindAllClients(ctx, models.HYSTERIA2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch clients: %w", err)
 	}
 
-	return &models.SingBoxConfig{
-		Protocol:    protocolType.String(),
-		Password:    password,
-		Method:      method,
-		NodeAddress: m.nodeHostname,
-		Port:        cfg.Port,
+	// Convert to user configs
+	users := make([]UserConfig, len(clients))
+	for i, client := range clients {
+		users[i] = UserConfig{
+			Name:     fmt.Sprintf("client-%d", client.ClientID),
+			Password: client.Password,
+		}
+	}
+
+	return &InboundConfig{
+		Type:       "hysteria2",
+		Tag:        "hysteria2-in",
+		Listen:     "0.0.0.0",
+		ListenPort: cfg.Port,
+		Users:      users,
+		Transport: map[string]interface{}{
+			"type": "quic",
+			"tls": map[string]interface{}{
+				"enabled":      true,
+				"server_name":  m.nodeHostname,
+				"certificate":  "/etc/sing-box/cert.pem",
+				"key":          "/etc/sing-box/key.pem",
+			},
+		},
+	}, nil
+}
+
+// buildClientConfig generates the response configuration for a client
+func (m *Manager) buildClientConfig(protocolType models.ProtocolType, password string) interface{} {
+	cfg := m.protocols[protocolType]
+
+	switch protocolType {
+	case models.SHADOWSOCKS:
+		return &models.SingBoxConfig{
+			ClientID:    0, // Will be set by caller
+			Protocol:    protocolType.String(),
+			Password:    password,
+			Method:      cfg.Method,
+			NodeAddress: m.nodeHostname,
+			Port:        cfg.Port,
+		}
+	case models.VLESS:
+		return &models.SingBoxConfig{
+			ClientID:    0, // Will be set by caller
+			Protocol:    protocolType.String(),
+			Password:    password,
+			NodeAddress: m.nodeHostname,
+			Port:        cfg.Port,
+		}
+	case models.HYSTERIA2:
+		return &models.Hysteria2Config{
+			ClientID:    0, // Will be set by caller
+			Protocol:    protocolType.String(),
+			Password:    password,
+			NodeAddress: m.nodeHostname,
+			Port:        cfg.Port,
+			Obfs:        cfg.Obfs,
+		}
+	default:
+		return &models.SingBoxConfig{
+			ClientID:    0,
+			Protocol:    protocolType.String(),
+			Password:    password,
+			NodeAddress: m.nodeHostname,
+			Port:        cfg.Port,
+		}
 	}
 }
 

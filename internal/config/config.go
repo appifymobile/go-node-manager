@@ -45,6 +45,7 @@ type SingBoxConfig struct {
 	ConfigPath  string            `yaml:"configpath"`
 	ShadowSocks ShadowSocksConfig `yaml:"shadowsocks"`
 	VLESS       VLESSConfig       `yaml:"vless"`
+	Hysteria2   Hysteria2Config   `yaml:"hysteria2"`
 }
 
 type ShadowSocksConfig struct {
@@ -57,6 +58,12 @@ type VLESSConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	Port    uint16 `yaml:"port"`
 	ShortID string `yaml:"shortid"`
+}
+
+type Hysteria2Config struct {
+	Enabled bool   `yaml:"enabled"`
+	Port    uint16 `yaml:"port"`
+	Obfs    string `yaml:"obfs"`
 }
 
 type HealthConfig struct {
