@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"go-node-manager/internal/health"
 	"go-node-manager/internal/models"
 	"go-node-manager/internal/service"
 )
@@ -14,13 +16,19 @@ import (
 // Handler handles HTTP requests for VPN management
 type Handler struct {
 	managers map[models.ProtocolType]service.VpnManager
+	metrics  *health.MetricsCollector
 	logger   *slog.Logger
 }
 
 // New creates a new HTTP handler
-func New(managers map[models.ProtocolType]service.VpnManager, logger *slog.Logger) *Handler {
+func New(
+	managers map[models.ProtocolType]service.VpnManager,
+	metrics *health.MetricsCollector,
+	logger *slog.Logger,
+) *Handler {
 	return &Handler{
 		managers: managers,
+		metrics:  metrics,
 		logger:   logger,
 	}
 }
@@ -35,6 +43,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/manage/health", h.Health).Methods(http.MethodGet)
 	router.HandleFunc("/manage/health/readiness", h.Readiness).Methods(http.MethodGet)
 	router.HandleFunc("/manage/health/liveness", h.Liveness).Methods(http.MethodGet)
+	router.HandleFunc("/manage/metrics", h.Metrics).Methods(http.MethodGet)
 }
 
 // Connect handles POST /api/v1/clients/{clientId}/{type}/connect
@@ -64,8 +73,9 @@ func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add client
-	config, err := manager.AddClient(r.Context(), clientID)
+	// Add client with protocol in context
+	ctx := context.WithValue(r.Context(), "protocol", protocolType)
+	config, err := manager.AddClient(ctx, clientID)
 	if err != nil {
 		h.logger.Error("Failed to add client",
 			"clientID", clientID,
@@ -86,6 +96,9 @@ func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusInternalServerError, "failed to add client")
 		return
 	}
+
+	// Record metrics
+	h.metrics.RecordClientAdded(protocolType)
 
 	// Return configuration as JSON
 	w.Header().Set("Content-Type", "application/json")
@@ -125,8 +138,9 @@ func (h *Handler) Disconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete client
-	if err := manager.DeleteClient(r.Context(), clientID); err != nil {
+	// Delete client with protocol in context
+	ctx := context.WithValue(r.Context(), "protocol", protocolType)
+	if err := manager.DeleteClient(ctx, clientID); err != nil {
 		h.logger.Error("Failed to delete client",
 			"clientID", clientID,
 			"protocol", protocolType,
@@ -139,8 +153,12 @@ func (h *Handler) Disconnect(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.respondError(w, http.StatusInternalServerError, "failed to delete client")
+		h.metrics.RecordError()
 		return
 	}
+
+	// Record metrics
+	h.metrics.RecordClientRemoved(protocolType)
 
 	// Return 204 No Content
 	w.WriteHeader(http.StatusNoContent)
@@ -176,6 +194,13 @@ func (h *Handler) Liveness(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "alive",
 	})
+}
+
+// Metrics returns metrics in JSON format
+func (h *Handler) Metrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(h.metrics.GetSnapshot())
 }
 
 // respondError sends an error response in JSON format

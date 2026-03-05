@@ -15,8 +15,10 @@ import (
 	"github.com/gorilla/mux"
 	"go-node-manager/internal/api"
 	"go-node-manager/internal/config"
+	"go-node-manager/internal/health"
 	"go-node-manager/internal/models"
 	"go-node-manager/internal/service"
+	"go-node-manager/internal/service/singbox"
 	"go-node-manager/internal/service/wireguard"
 	"go-node-manager/internal/storage"
 )
@@ -97,12 +99,66 @@ func main() {
 		)
 	}
 
-	// TODO: Initialize SingBox manager if enabled
+	// Initialize metrics collector
+	metricsCollector := health.NewMetricsCollector(db, logger)
+
+	// Initialize SingBox manager if enabled
+	if cfg.VPN.SingBox.Enabled {
+		sbManager, err := singbox.New(
+			cfg.VPN.SingBox.ConfigPath,
+			getNodeHostname(),
+			db,
+			map[models.ProtocolType]*singbox.ProtocolConfig{
+				models.SHADOWSOCKS: {
+					Enabled: cfg.VPN.SingBox.ShadowSocks.Enabled,
+					Port:    cfg.VPN.SingBox.ShadowSocks.Port,
+					Method:  cfg.VPN.SingBox.ShadowSocks.EncryptionMethod,
+				},
+				models.VLESS: {
+					Enabled: cfg.VPN.SingBox.VLESS.Enabled,
+					Port:    cfg.VPN.SingBox.VLESS.Port,
+					ShortID: cfg.VPN.SingBox.VLESS.ShortID,
+				},
+			},
+			logger,
+		)
+		if err != nil {
+			logger.Error("Failed to initialize SingBox manager", "error", err)
+			os.Exit(1)
+		}
+
+		// Start SingBox server
+		if err := sbManager.StartServer(ctx); err != nil {
+			logger.Error("Failed to start SingBox server", "error", err)
+			os.Exit(1)
+		}
+
+		if cfg.VPN.SingBox.ShadowSocks.Enabled {
+			managers[models.SHADOWSOCKS] = sbManager
+			logger.Info("ShadowSocks manager initialized",
+				"port", cfg.VPN.SingBox.ShadowSocks.Port,
+			)
+		}
+
+		if cfg.VPN.SingBox.VLESS.Enabled {
+			managers[models.VLESS] = sbManager
+			logger.Info("VLESS manager initialized",
+				"port", cfg.VPN.SingBox.VLESS.Port,
+			)
+		}
+
+		// Start housekeeping for SingBox
+		go startHousekeepingTicker(ctx, sbManager, 24*time.Hour, logger)
+	}
 
 	// Initialize HTTP router
 	router := mux.NewRouter()
-	handler := api.New(managers, logger)
+	handler := api.New(managers, metricsCollector, logger)
 	handler.RegisterRoutes(router)
+
+	// Register Prometheus metrics endpoint
+	prometheusHandler := health.NewMetricsHandler(metricsCollector)
+	router.Handle("/metrics", prometheusHandler)
 
 	// Create HTTP server
 	server := &http.Server{
