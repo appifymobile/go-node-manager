@@ -5,9 +5,11 @@ go 1.22
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.5.5
-	golang.zx2c4.com/wireguard v0.0.0-20240516160523-ede42f11e5c1
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+// Use a recent stable version of wireguard
+require golang.zx2c4.com/wireguard v1.0.0
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

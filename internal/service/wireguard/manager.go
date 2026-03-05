@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"time"
 
@@ -351,6 +352,3 @@ func (m *Manager) Close() error {
 	}
 	return nil
 }
-
-// Add missing import
-import "net"

@@ -16,6 +16,7 @@ import (
 	"go-node-manager/internal/api"
 	"go-node-manager/internal/config"
 	"go-node-manager/internal/models"
+	"go-node-manager/internal/service"
 	"go-node-manager/internal/service/wireguard"
 	"go-node-manager/internal/storage"
 )
@@ -179,6 +180,3 @@ func getNodeHostname() string {
 	}
 	return hostname
 }
-
-// Add missing import
-import "go-node-manager/internal/service"

@@ -17,7 +17,7 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port int `yaml:"port"`
+	Port int       `yaml:"port"`
 	TLS  TLSConfig `yaml:"tls"`
 }
 
@@ -28,29 +28,29 @@ type TLSConfig struct {
 }
 
 type VPNConfig struct {
-	WireGuard   WireGuardConfig   `yaml:"wireguard"`
-	SingBox     SingBoxConfig     `yaml:"singbox"`
+	WireGuard WireGuardConfig `yaml:"wireguard"`
+	SingBox   SingBoxConfig   `yaml:"singbox"`
 }
 
 type WireGuardConfig struct {
-	Enabled     bool          `yaml:"enabled"`
-	Port        uint16        `yaml:"port"`
-	Iface       string        `yaml:"iface"`
-	Address     string        `yaml:"address"`
-	HealthCheck HealthConfig  `yaml:"healthcheck"`
+	Enabled     bool         `yaml:"enabled"`
+	Port        uint16       `yaml:"port"`
+	Iface       string       `yaml:"iface"`
+	Address     string       `yaml:"address"`
+	HealthCheck HealthConfig `yaml:"healthcheck"`
 }
 
 type SingBoxConfig struct {
-	Enabled     bool                    `yaml:"enabled"`
-	ConfigPath  string                  `yaml:"configpath"`
-	ShadowSocks ShadowSocksConfig       `yaml:"shadowsocks"`
-	VLESS       VLESSConfig            `yaml:"vless"`
+	Enabled     bool              `yaml:"enabled"`
+	ConfigPath  string            `yaml:"configpath"`
+	ShadowSocks ShadowSocksConfig `yaml:"shadowsocks"`
+	VLESS       VLESSConfig       `yaml:"vless"`
 }
 
 type ShadowSocksConfig struct {
-	Enabled           bool   `yaml:"enabled"`
-	Port              uint16 `yaml:"port"`
-	EncryptionMethod  string `yaml:"encryptionmethod"`
+	Enabled          bool   `yaml:"enabled"`
+	Port             uint16 `yaml:"port"`
+	EncryptionMethod string `yaml:"encryptionmethod"`
 }
 
 type VLESSConfig struct {
