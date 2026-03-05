@@ -14,9 +14,10 @@ import (
 // HealthService implements the NodeHealthServiceServer
 type HealthService struct {
 	pb.UnimplementedNodeHealthServiceServer
-	metricsCollector *health.MetricsCollector
-	db               *storage.DB
-	logger           *slog.Logger
+	metricsCollector    *health.MetricsCollector
+	db                  *storage.DB
+	logger              *slog.Logger
+	healthCheckInterval time.Duration
 }
 
 // NewHealthService creates a new health service
@@ -24,11 +25,13 @@ func NewHealthService(
 	metricsCollector *health.MetricsCollector,
 	db *storage.DB,
 	logger *slog.Logger,
+	healthCheckInterval time.Duration,
 ) *HealthService {
 	return &HealthService{
-		metricsCollector: metricsCollector,
-		db:               db,
-		logger:           logger,
+		metricsCollector:    metricsCollector,
+		db:                  db,
+		logger:              logger,
+		healthCheckInterval: healthCheckInterval,
 	}
 }
 
@@ -41,7 +44,7 @@ func (hs *HealthService) StreamHealth(
 	defer hs.logger.Debug("StreamHealth ended", "node_id", req.NodeId)
 
 	ctx := stream.Context()
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(hs.healthCheckInterval)
 	defer ticker.Stop()
 
 	// Send initial event immediately
@@ -49,7 +52,7 @@ func (hs *HealthService) StreamHealth(
 		return err
 	}
 
-	// Stream health events every 10 seconds
+	// Stream health events at configured interval
 	for {
 		select {
 		case <-ctx.Done():

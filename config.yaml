@@ -45,3 +45,8 @@ metrics:
 grpc:
   enabled: true
   port: 9091
+  healthcheckinterval: 10s
+  auth:
+    enabled: false
+    username: ""
+    password: ""

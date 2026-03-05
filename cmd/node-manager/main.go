@@ -111,8 +111,15 @@ func main() {
 	grpcErrors := make(chan error, 1)
 
 	if cfg.GRPC.Enabled {
-		healthService := grpcinternal.NewHealthService(metricsCollector, db, logger)
-		grpcServer = grpc.NewServer()
+		healthService := grpcinternal.NewHealthService(metricsCollector, db, logger, cfg.GRPC.HealthCheckInterval)
+
+		var grpcServerOpts []grpc.ServerOption
+		if cfg.GRPC.Auth.Enabled {
+			authInterceptor := grpcinternal.NewStreamAuthInterceptor(cfg.GRPC.Auth.Username, cfg.GRPC.Auth.Password)
+			grpcServerOpts = append(grpcServerOpts, grpc.StreamInterceptor(authInterceptor))
+		}
+
+		grpcServer = grpc.NewServer(grpcServerOpts...)
 		pb.RegisterNodeHealthServiceServer(grpcServer, healthService)
 
 		// Start gRPC server in a goroutine

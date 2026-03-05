@@ -93,8 +93,16 @@ type MetricsConfig struct {
 }
 
 type GRPCConfig struct {
-	Enabled bool `yaml:"enabled"`
-	Port    int  `yaml:"port"`
+	Enabled             bool           `yaml:"enabled"`
+	Port                int            `yaml:"port"`
+	HealthCheckInterval time.Duration  `yaml:"healthcheckinterval"`
+	Auth                GRPCAuthConfig `yaml:"auth"`
+}
+
+type GRPCAuthConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 // Load reads configuration from YAML file and applies environment variable overrides
