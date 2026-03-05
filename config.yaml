@@ -41,3 +41,7 @@ logging:
 metrics:
   enabled: true
   port: 9090
+
+grpc:
+  enabled: true
+  port: 9091

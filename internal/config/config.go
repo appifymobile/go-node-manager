@@ -14,6 +14,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Logging  LoggingConfig  `yaml:"logging"`
 	Metrics  MetricsConfig  `yaml:"metrics"`
+	GRPC     GRPCConfig     `yaml:"grpc"`
 }
 
 type ServerConfig struct {
@@ -87,6 +88,11 @@ type LoggingConfig struct {
 }
 
 type MetricsConfig struct {
+	Enabled bool `yaml:"enabled"`
+	Port    int  `yaml:"port"`
+}
+
+type GRPCConfig struct {
 	Enabled bool `yaml:"enabled"`
 	Port    int  `yaml:"port"`
 }

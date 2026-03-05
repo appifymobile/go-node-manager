@@ -44,6 +44,16 @@ func (d *DB) Close() {
 	d.pool.Close()
 }
 
+// PingDB checks database connectivity and returns latency in milliseconds
+func (d *DB) PingDB(ctx context.Context) (latencyMs int64, err error) {
+	start := time.Now()
+	pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	err = d.pool.Ping(pingCtx)
+	latencyMs = time.Since(start).Milliseconds()
+	return
+}
+
 // GetPool returns the underlying pgxpool.Pool for advanced queries
 func (d *DB) GetPool() *pgxpool.Pool {
 	return d.pool

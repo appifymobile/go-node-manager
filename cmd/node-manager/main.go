@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,14 +14,17 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
 	"go-node-manager/internal/api"
 	"go-node-manager/internal/config"
+	grpcinternal "go-node-manager/internal/grpc"
 	"go-node-manager/internal/health"
 	"go-node-manager/internal/models"
 	"go-node-manager/internal/service"
 	"go-node-manager/internal/service/singbox"
 	"go-node-manager/internal/service/wireguard"
 	"go-node-manager/internal/storage"
+	pb "go-node-manager/proto/nodemgr"
 )
 
 func main() {
@@ -101,6 +105,28 @@ func main() {
 
 	// Initialize metrics collector
 	metricsCollector := health.NewMetricsCollector(db, logger)
+
+	// Initialize gRPC server if enabled
+	var grpcServer *grpc.Server
+	grpcErrors := make(chan error, 1)
+
+	if cfg.GRPC.Enabled {
+		healthService := grpcinternal.NewHealthService(metricsCollector, db, logger)
+		grpcServer = grpc.NewServer()
+		pb.RegisterNodeHealthServiceServer(grpcServer, healthService)
+
+		// Start gRPC server in a goroutine
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
+		if err != nil {
+			logger.Error("Failed to create gRPC listener", "error", err)
+			os.Exit(1)
+		}
+
+		go func() {
+			logger.Info("Starting gRPC server", "port", cfg.GRPC.Port)
+			grpcErrors <- grpcServer.Serve(listener)
+		}()
+	}
 
 	// Initialize SingBox manager if enabled
 	if cfg.VPN.SingBox.Enabled {
@@ -195,7 +221,12 @@ func main() {
 	select {
 	case err := <-serverErrors:
 		if err != http.ErrServerClosed {
-			logger.Error("Server error", "error", err)
+			logger.Error("HTTP server error", "error", err)
+			os.Exit(1)
+		}
+	case err := <-grpcErrors:
+		if err != nil {
+			logger.Error("gRPC server error", "error", err)
 			os.Exit(1)
 		}
 	case sig := <-sigChan:
@@ -205,12 +236,19 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		// Shutdown HTTP server first
 		if err := server.Shutdown(shutdownCtx); err != nil {
-			logger.Error("Server shutdown error", "error", err)
+			logger.Error("HTTP server shutdown error", "error", err)
 			os.Exit(1)
 		}
 
-		logger.Info("Server shut down successfully")
+		// Gracefully shutdown gRPC server
+		if grpcServer != nil {
+			grpcServer.GracefulStop()
+			logger.Info("gRPC server shut down successfully")
+		}
+
+		logger.Info("All servers shut down successfully")
 	}
 }
 

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package nodemgr;
+
+option go_package = "go-node-manager/proto/nodemgr";
+
+service NodeHealthService {
+  rpc StreamHealth(HealthStreamRequest) returns (stream HealthEvent);
+}
+
+message HealthStreamRequest {
+  string node_id = 1;
+}
+
+message HealthEvent {
+  string node_id            = 1;
+  string status             = 2;
+  int64  latency_ms         = 3;
+  int64  active_connections = 4;
+  int64  timestamp          = 5;
+}

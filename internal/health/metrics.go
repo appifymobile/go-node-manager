@@ -109,6 +109,24 @@ func (mc *MetricsCollector) GetSnapshot() map[string]interface{} {
 	}
 }
 
+// GetHealthSnapshot returns a structured snapshot for health status computation
+func (mc *MetricsCollector) GetHealthSnapshot() HealthSnapshot {
+	mc.mu.RLock()
+	defer mc.mu.RUnlock()
+
+	totalActive := 0
+	for _, count := range mc.activeClientsByProtocol {
+		totalActive += count
+	}
+
+	return HealthSnapshot{
+		TotalActiveConnections: int64(totalActive),
+		TotalErrors:            mc.totalErrors,
+		TotalClientsCreated:    mc.totalClientsCreated,
+		LastMaintenanceTime:    mc.lastMaintenanceTime,
+	}
+}
+
 // PrometheusMetrics holds Prometheus metric objects
 type PrometheusMetrics struct {
 	ActiveClients  map[models.ProtocolType]float64
