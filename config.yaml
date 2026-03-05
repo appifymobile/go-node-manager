@@ -1,0 +1,43 @@
+server:
+  port: 8080
+  tls:
+    enabled: false
+
+vpn:
+  wireguard:
+    enabled: true
+    port: 51820
+    iface: wg0
+    address: 10.37.0.1/16
+    healthcheck:
+      enabled: true
+      interval: 2h
+
+  singbox:
+    enabled: false
+    configpath: /etc/sing-box/config.json
+    shadowsocks:
+      enabled: true
+      port: 8443
+      encryptionmethod: 2022-blake3-aes-128-gcm
+    vless:
+      enabled: true
+      port: 8880
+      shortid: 65681c82c50d9a12
+
+database:
+  host: localhost
+  port: 5432
+  name: vvpn
+  user: vvpn
+  password: changeme
+  maxconnections: 10
+  sslmode: require
+
+logging:
+  level: info
+  format: json
+
+metrics:
+  enabled: true
+  port: 9090
